@@ -102,13 +102,6 @@ class VectorIndexer:
                 field_schema=PayloadSchemaType.INTEGER
             )
             
-            # Keyword indexes for exact matching
-            self.qdrant.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="career_stage",
-                field_schema=PayloadSchemaType.KEYWORD
-            )
-            
             # Text index for full-text search on profile
             self.qdrant.create_payload_index(
                 collection_name=self.collection_name,
@@ -220,7 +213,6 @@ class VectorIndexer:
             'h_index': profile.get('h_index', 0),
             
             # Categorical fields
-            'career_stage': profile.get('career_stage', 'unknown'),
             
             # List fields
             'affiliations': profile.get('affiliations', []),
@@ -253,7 +245,6 @@ class VectorIndexer:
         # Add searchable text summary (for keyword search)
         search_text_parts = [
             profile['name'],
-            profile.get('career_stage', ''),
             ' '.join(profile.get('affiliations', [])),
             ' '.join(profile.get('locations', [])),
             ' '.join(profile.get('nationality_signals', [])),
@@ -349,7 +340,6 @@ class VectorIndexer:
             for i, hit in enumerate(results, 1):
                 print(f"\n{i}. {hit.payload['name']}")
                 print(f"   Score: {hit.score:.3f}")
-                print(f"   Career Stage: {hit.payload.get('career_stage', 'N/A')}")
                 print(f"   Papers: {hit.payload.get('paper_count', 0)}")
                 print(f"   Affiliations: {', '.join(hit.payload.get('affiliations', [])[:2])}")
                 print(f"   Research: {', '.join(hit.payload.get('research_areas', [])[:3])}")

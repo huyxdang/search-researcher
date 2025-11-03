@@ -36,14 +36,6 @@ class QueryParser:
     """Parse and understand search queries"""
     
     def __init__(self):
-        self.career_terms = {
-            'phd': ['phd student', 'doctoral candidate', 'graduate student'],
-            'postdoc': ['postdoctoral', 'postdoc', 'research fellow'],
-            'early-career': ['early career', 'assistant professor', 'new researcher', 'junior'],
-            'senior': ['professor', 'senior researcher', 'established', 'veteran', 'experienced'],
-            'mid-career': ['associate professor', 'mid-career', 'established researcher']
-        }
-        
         self.nationality_terms = {
             'vietnamese': ['vietnam', 'hanoi', 'ho chi minh', 'hcmc', 'vinai', 'vnu'],
             'chinese': ['china', 'beijing', 'shanghai', 'tsinghua', 'chinese'],
@@ -130,12 +122,6 @@ class QueryParser:
         """Extract hard filters from query"""
         filters = {}
         
-        # Career stage filters
-        for stage, terms in self.career_terms.items():
-            if any(term in query for term in terms):
-                filters['career_stage'] = stage
-                break
-        
         # Paper count filters
         paper_count_patterns = [
             (r'(\d+)\+ papers', 'min'),
@@ -185,12 +171,6 @@ class QueryParser:
             matches = re.finditer(pattern, query, re.IGNORECASE)
             for match in matches:
                 excluded_term = match.group(1).lower()
-                
-                # Check if it's a career stage
-                for stage, terms in self.career_terms.items():
-                    if any(excluded_term in term or term in excluded_term for term in terms):
-                        exclude_filters['career_stage'] = stage
-                        break
                 
                 # Check if it's a nationality
                 for nationality, terms in self.nationality_terms.items():
@@ -261,11 +241,6 @@ class QueryParser:
         """Extract high-level semantic concepts"""
         concepts = []
         
-        # Check career stages
-        for stage, terms in self.career_terms.items():
-            if any(term in query for term in terms):
-                concepts.append(f"career_stage:{stage}")
-        
         # Check nationalities
         for nationality, terms in self.nationality_terms.items():
             if any(term in query for term in [nationality] + terms[:3]):
@@ -302,11 +277,6 @@ class QueryParser:
                     # Add research-specific terms
                     expanded_parts.append(' '.join(self.research_terms[concept_value][:3]))
             
-            elif concept_type == 'career_stage':
-                if concept_value in self.career_terms:
-                    # Add career-specific terms
-                    expanded_parts.append(' '.join(self.career_terms[concept_value][:2]))
-        
         # Add boost terms (but don't duplicate)
         unique_boost = [term for term in boost_terms[:5] if term not in original.lower()]
         if unique_boost:
@@ -445,14 +415,6 @@ class SemanticAuthorSearch:
         # Build Qdrant filter conditions
         filter_conditions = []
         
-        if 'career_stage' in query.filters:
-            filter_conditions.append(
-                FieldCondition(
-                    key="career_stage",
-                    match={"value": query.filters['career_stage']}
-                )
-            )
-        
         if 'min_papers' in query.filters:
             filter_conditions.append(
                 FieldCondition(
@@ -529,11 +491,6 @@ class SemanticAuthorSearch:
             should_exclude = False
             metadata = result.get('metadata', {})
             
-            # Exclude by career stage
-            if 'career_stage' in exclude_filters:
-                if metadata.get('career_stage') == exclude_filters['career_stage']:
-                    should_exclude = True
-            
             # Exclude by nationality
             if 'nationality' in exclude_filters:
                 excluded_nat = exclude_filters['nationality']
@@ -596,10 +553,6 @@ class SemanticAuthorSearch:
                     if concept_value in result['metadata'].get('nationality_signals', []):
                         concept_boost += 0.1
                 
-                elif concept_type == 'career_stage':
-                    if concept_value == result['metadata'].get('career_stage'):
-                        concept_boost += 0.1
-                
                 elif concept_type == 'research':
                     # Check if research area appears in recent papers
                     recent_focus = result['metadata'].get('research_evolution', {}).get('recent_focus', [])
@@ -619,11 +572,6 @@ class SemanticAuthorSearch:
         for result in results:
             explanations = []
             metadata = result.get('metadata', {})
-            
-            # Explain career stage match
-            if 'career_stage' in query.filters:
-                if metadata.get('career_stage') == query.filters['career_stage']:
-                    explanations.append(f"✓ Career stage: {query.filters['career_stage']}")
             
             # Explain nationality signals
             for concept in query.semantic_concepts:
@@ -659,10 +607,9 @@ class SemanticAuthorSearch:
         
         parts = []
         
-        # Add career stage
-        career_stage = metadata.get('career_stage', 'researcher')
+        # Add years active
         years_active = metadata.get('years_active', 0)
-        parts.append(f"{career_stage.replace('_', ' ').title()} ({years_active} years)")
+        parts.append(f"Active researcher ({years_active} years)")
         
         # Add location if relevant
         if metadata.get('affiliations'):
@@ -692,12 +639,12 @@ def demo_search():
     # Example queries showcasing different capabilities
     test_queries = [
         "Vietnamese researchers in the US working on GUI agents",
-        "Early-career researchers who transitioned from NLP to computer vision",
-        "Senior researchers with 50+ papers in multimodal learning, excluding postdocs",
-        "Chinese PhD students working on reinforcement learning since 2022",
+        "Researchers who transitioned from NLP to computer vision",
+        "Researchers with 50+ papers in multimodal learning",
+        "Chinese researchers working on reinforcement learning since 2022",
         "Researchers at VinAI or KAIST focusing on web automation",
-        "Find established professors who moved from robotics to LLMs",
-        "Vietnamese researchers in US but not postdocs",
+        "Researchers who moved from robotics to LLMs",
+        "Vietnamese researchers in US",
         "Researchers from China or India working on LLMs"
     ]
     

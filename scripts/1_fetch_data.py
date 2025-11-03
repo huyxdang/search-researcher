@@ -223,6 +223,8 @@ if __name__ == "__main__":
     # This avoids ArXiv API issues with large OR queries
     # Categories and start_year are loaded from categories.py by default
     papers = fetch_arxiv_papers(
+        categories=['cs.AI'],
+        start_year=2022,
         fetch_all=True  # Fetch all available papers
     )
     

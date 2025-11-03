@@ -4,7 +4,7 @@
 import json
 from collections import defaultdict
 from openai import OpenAI
-from semanticscholar import SemanticScholar
+from semanticscholar import SemanticScholar  # type: ignore
 import os
 import time
 import re
@@ -57,40 +57,6 @@ LOCATION_PATTERNS = {
     }
 }
 
-# Career stage inference patterns
-CAREER_STAGE_SIGNALS = {
-    'phd_student': {
-        'keywords': ['PhD candidate', 'doctoral student', 'graduate student', 'PhD student'],
-        'paper_range': (1, 8),
-        'year_range': (0, 5),
-        'title_patterns': ['student', 'candidate', 'fellow']
-    },
-    'postdoc': {
-        'keywords': ['postdoctoral', 'postdoc', 'research fellow', 'post-doctoral'],
-        'paper_range': (3, 15),
-        'year_range': (2, 7),
-        'title_patterns': ['postdoc', 'fellow', 'researcher']
-    },
-    'early_career': {
-        'keywords': ['assistant professor', 'lecturer', 'junior researcher', 'research scientist'],
-        'paper_range': (5, 25),
-        'year_range': (3, 10),
-        'title_patterns': ['assistant', 'lecturer', 'scientist']
-    },
-    'mid_career': {
-        'keywords': ['associate professor', 'senior researcher', 'principal researcher', 'staff scientist'],
-        'paper_range': (15, 50),
-        'year_range': (7, 15),
-        'title_patterns': ['associate', 'senior', 'principal', 'staff']
-    },
-    'senior': {
-        'keywords': ['professor', 'director', 'head', 'chief', 'distinguished', 'emeritus'],
-        'paper_range': (30, 500),
-        'year_range': (12, 50),
-        'title_patterns': ['professor', 'director', 'head', 'chief', 'distinguished']
-    }
-}
-
 def infer_nationality_signals(author_name: str, affiliations: List[str], 
                              locations: Set[str]) -> Dict[str, List[str]]:
     """
@@ -139,56 +105,6 @@ def infer_nationality_signals(author_name: str, affiliations: List[str],
             signals[region] = region_signals
     
     return signals
-
-def infer_career_stage(paper_count: int, years_active: int, 
-                      citation_count: int = 0) -> Dict[str, str]:
-    """
-    Infer career stage from publication metrics
-    """
-    stage_info = {}
-    
-    # Primary inference from years and papers
-    if years_active <= 3 and paper_count <= 8:
-        stage = 'phd_student'
-        description = "early-stage researcher, likely PhD student or recent graduate"
-    elif years_active <= 5 and paper_count <= 15:
-        stage = 'postdoc'
-        description = "early-career researcher, possibly postdoctoral researcher"
-    elif years_active <= 10 and paper_count <= 30:
-        stage = 'early_career'
-        description = "early to mid-career researcher, establishing research program"
-    elif years_active <= 15 and paper_count <= 60:
-        stage = 'mid_career'
-        description = "mid-career researcher, established research track record"
-    else:
-        stage = 'senior'
-        description = "senior researcher, extensive publication history"
-    
-    # Adjust based on citation count if available
-    if citation_count > 1000 and stage in ['phd_student', 'postdoc']:
-        stage = 'early_career'
-        description += ", with significant research impact"
-    elif citation_count > 5000 and stage in ['early_career']:
-        stage = 'mid_career'
-        description += ", highly cited researcher"
-    elif citation_count > 10000:
-        stage = 'senior'
-        description += ", highly influential researcher"
-    
-    stage_info['stage'] = stage
-    stage_info['description'] = description
-    
-    # Add temporal markers
-    if years_active <= 2:
-        stage_info['temporal'] = "very recent entrant to the field"
-    elif years_active <= 5:
-        stage_info['temporal'] = "relatively new to the field"
-    elif years_active <= 10:
-        stage_info['temporal'] = "established presence in the field"
-    else:
-        stage_info['temporal'] = "long-standing contributor to the field"
-    
-    return stage_info
 
 def extract_research_evolution(papers: List[Dict]) -> Dict[str, any]:
     """
@@ -277,20 +193,24 @@ def build_enriched_author_profile(author_name: str, papers: List[Dict]) -> Dict:
     # Infer nationality signals
     nationality_signals = infer_nationality_signals(author_name, affiliations, locations)
     
-    # Infer career stage
-    career_stage = infer_career_stage(paper_count, years_active, citation_count)
-    
-    # Extract research evolution
-    research_evolution = extract_research_evolution(papers)
+    # Extract research evolution (only if we have enough papers for meaningful analysis)
+    # Note: Career stage inference removed - not needed for research topic and location search
+    if paper_count >= 3:
+        research_evolution = extract_research_evolution(papers)
+    else:
+        # For authors with 1-2 papers, use simplified evolution
+        research_evolution = {
+            'early_focus': [],
+            'recent_focus': [],
+            'consistent': True,
+            'transition': False
+        }
     
     # Build comprehensive profile text
     profile_parts = []
     
     # Opening with name and basic info
     profile_parts.append(f"{author_name} is a researcher in computer science.")
-    
-    # Add career stage information
-    profile_parts.append(f"Career stage: {career_stage['description']}. {career_stage['temporal']}.")
     
     # Add affiliation and location (with redundancy for better matching)
     if affiliations:
@@ -380,10 +300,6 @@ def build_enriched_author_profile(author_name: str, papers: List[Dict]) -> Dict:
     # Add semantic keywords at the end for better matching
     semantic_keywords = []
     
-    # Add career stage keywords
-    for keywords in CAREER_STAGE_SIGNALS[career_stage['stage']]['keywords']:
-        semantic_keywords.append(keywords)
-    
     # Add nationality keywords
     for region in nationality_signals.keys():
         if region in LOCATION_PATTERNS:
@@ -399,7 +315,6 @@ def build_enriched_author_profile(author_name: str, papers: List[Dict]) -> Dict:
         'first_year': first_year,
         'last_year': last_year,
         'years_active': years_active,
-        'career_stage': career_stage['stage'],
         'nationality_signals': list(nationality_signals.keys()),
         'research_evolution': research_evolution,
         'affiliations': affiliations,
@@ -591,13 +506,13 @@ if __name__ == "__main__":
     author_papers = group_papers_by_author(papers)
     print(f"Found {len(author_papers)} unique authors")
     
-    # Filter authors with 3+ papers
+    # Filter authors with 1+ papers (no minimum threshold)
     author_papers_filtered = {
         author: papers 
         for author, papers in author_papers.items() 
-        if len(papers) >= 3
+        if len(papers) >= 1
     }
-    print(f"Authors with 3+ papers: {len(author_papers_filtered)}")
+    print(f"Authors with 1+ papers: {len(author_papers_filtered)}")
     
     # Build enriched profiles
     profiles = []
@@ -613,7 +528,6 @@ if __name__ == "__main__":
                 if i == 9:  # Show first profile as example
                     print("\n--- Sample Profile ---")
                     print(f"Author: {profile['name']}")
-                    print(f"Career Stage: {profile['career_stage']}")
                     print(f"Nationality Signals: {profile['nationality_signals']}")
                     print(f"Research Evolution: {profile['research_evolution']}")
                     print("--- End Sample ---\n")
@@ -647,19 +561,13 @@ if __name__ == "__main__":
     print("="*60)
     
     # Print statistics
-    career_stages = defaultdict(int)
     nationalities = defaultdict(int)
     
     for profile in profiles:
-        career_stages[profile['career_stage']] += 1
         for nat in profile.get('nationality_signals', []):
             nationalities[nat] += 1
     
     print("\n--- Profile Statistics ---")
-    print("Career Stages:")
-    for stage, count in career_stages.items():
-        print(f"  {stage}: {count}")
-    
     print("\nInferred Nationalities:")
     for nat, count in nationalities.items():
         print(f"  {nat}: {count}")
