@@ -1,6 +1,6 @@
 qdrant-client==1.7.0
-openai==1.12.0
+openai>=1.50.0
 arxiv==2.1.0
 streamlit==1.31.0
 python-dotenv==1.0.0
-semanticscholar==2.4.0
+semanticscholar
