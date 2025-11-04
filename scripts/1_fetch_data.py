@@ -1,5 +1,6 @@
-# Download from ArXiv
-# scripts/1_fetch_data.py
+# Fetches research papers from ArXiv API by category and date range with month-by-month pagination
+# Uses retry logic and week-splitting fallback to handle API limitations and ensure complete data retrieval
+
 import arxiv
 import json
 from datetime import datetime

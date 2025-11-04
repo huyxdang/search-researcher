@@ -1,5 +1,5 @@
-# Enhanced profile builder with rich semantic signals
-# scripts/2_build_profiles_enhanced.py
+# Builds enriched author profiles by aggregating papers and enriching with Semantic Scholar metadata
+# Includes nationality inference, research evolution analysis, and location/affiliation data for semantic search
 
 import json
 from collections import defaultdict
@@ -101,7 +101,7 @@ def infer_nationality_signals(author_name: str, affiliations: List[str],
                     region_signals.append(f"located in {country_var}")
                     break
         
-        if confidence_score >= 0.5:  # Threshold for including signals
+        if confidence_score >= 0.3:  # Threshold for including signals
             signals[region] = region_signals
     
     return signals

@@ -1,5 +1,5 @@
-# Enhanced vector indexing with proper metadata storage
-# scripts/3_index_vectors_enhanced.py
+# Creates vector embeddings using OpenAI text-embedding-3-large and indexes author profiles in Qdrant
+# Generates multiple embeddings (full profile, research focus, identity) with rich metadata for filtering
 
 import json
 import numpy as np

@@ -1,5 +1,5 @@
-# Advanced semantic search with query expansion and hybrid capabilities
-# scripts/4_advanced_search.py
+# Performs advanced semantic search with intelligent query parsing, filtering, and multi-factor re-ranking
+# Supports hybrid search modes, negation filters, location constraints, and relevance explanations
 
 import json
 import numpy as np
