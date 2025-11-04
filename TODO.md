@@ -1,0 +1,4 @@
+-[X] Test Fetch Data (script 1)
+-[ ] Test Build Profiles (script 2)
+-[ ] Test Index Vectors (make sure it runs properly)
+-[ ] Test Advanced Search (make sure it runs properly)
